@@ -28,7 +28,7 @@ jobs:
     
     - name: Test with pytest
       run: |
-        pytest test_yesterwind_zmodem.py -v --cov=yesterwind_zmodem --cov-report=xml --cov-report=term-missing
+        pytest test_*.py -v --cov=yesterwind_zmodem --cov-report=xml --cov-report=term-missing
     
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -53,7 +53,7 @@ jobs:
     
     - name: Check coverage
       run: |
-        pytest test_yesterwind_zmodem.py -v --cov=yesterwind_zmodem --cov-report=term-missing
+        pytest test_*.py -v --cov=yesterwind_zmodem --cov-report=term-missing
         COVERAGE=$(pytest --cov=yesterwind_zmodem --cov-report=term-missing 2>&1 | grep "TOTAL" | awk '{print $4}' | tr -d '%')
         if [ "$COVERAGE" -lt 100 ]; then
           echo "Coverage is $COVERAGE%, below 100%"
