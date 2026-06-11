@@ -48,6 +48,29 @@ receiver.receive_file()
 | YModem  | 1024     | Yes     | No |
 | ZModem  | 1024     | Yes     | Yes |
 
+## Development
+
+### GitFlow Workflow
+
+- **main** (development branch) - Active development
+- **feature/** - New features (e.g., `feature/new-protocol`)
+- **bugfix/** - Bug fixes (e.g., `bugfix/fix-error`)
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest test_*.py -v
+
+# Run with coverage
+pytest test_*.py -v --cov=yesterwind_zmodem --cov-report=term-missing
+```
+
+### Creating a Release
+
+1. Update version in `pyproject.toml` and `setup.py`
+2. Create a GitHub release (triggers PyPI publish)
+
 ## License
 
 MIT
