@@ -187,16 +187,24 @@ def progress_bar(info: dict):
     block = info.get('block', 0)
     total = info.get('total_blocks', 0)
     filename = info.get('filename', '')
+    bytes_val = info.get('bytes', 0)
+    total_bytes = info.get('total_bytes', 0)
     
     bar_width = 30
     filled = int(bar_width * percent / 100)
     bar = '=' * filled + '-' * (bar_width - filled)
     
-    sys.stdout.write(f'\r[{bar}] {percent:.1f}% {filename}')
+    # Format byte display
+    if total_bytes > 0:
+        size_str = f"{bytes_val}/{total_bytes} bytes"
+    else:
+        size_str = f"{bytes_val} bytes"
+    
+    sys.stdout.write(f'\r[{bar}] {percent:.1f}% {block}/{total} {size_str} {filename}')
     sys.stdout.flush()
     
     if percent >= 100:
-        print()
+        print(f"\n✓ Downloaded: {filename}")
 
 
 def main():
