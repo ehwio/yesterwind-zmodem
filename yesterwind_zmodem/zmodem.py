@@ -15,7 +15,7 @@ import os
 import struct
 import logging
 import time
-from typing import Optional
+from typing import Optional, Callable, Dict, Any
 from enum import IntEnum
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,48 @@ TELNET_IAC = 0xFF # Telnet IAC
 class ZModemError(Exception):
     """Base exception for ZModem errors"""
     pass
+
+
+class TransferProgress:
+    """Progress callback for file transfers"""
+    
+    def __init__(self, callback: Optional[Callable[[Dict[str, Any]], None]] = None):
+        self.callback = callback
+        self.reset()
+        
+    def reset(self):
+        self.block = 0
+        self.total_blocks = 0
+        self.bytes = 0
+        self.total_bytes = 0
+        self.filename = ""
+        self.errors = 0
+        self.started_at = time.time()
+        self.last_callback = 0
+        
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+        if self.callback:
+            now = time.time()
+            if now - self.last_callback >= 0.1:
+                self.callback(self.get_info())
+                self.last_callback = now
+                
+    def get_info(self) -> Dict[str, Any]:
+        elapsed = time.time() - self.started_at
+        return {
+            "block": self.block,
+            "total_blocks": self.total_blocks,
+            "bytes": self.bytes,
+            "total_bytes": self.total_bytes,
+            "filename": self.filename,
+            "errors": self.errors,
+            "started_at": self.started_at,
+            "elapsed": elapsed,
+            "percent": (self.bytes / self.total_bytes * 100) if self.total_bytes > 0 else 0
+        }
 
 
 class ZModemConstants:
@@ -100,16 +142,19 @@ class ZModemConstants:
 class ZModemReceiver:
     """ZModem file receiver"""
     
-    def __init__(self, stream, output_dir: str = '.'):
+    def __init__(self, stream, output_dir: str = '.',
+                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         """
         Initialize ZModem receiver
         
         Args:
             stream: Readable stream
             output_dir: Directory for received files
+            progress_callback: Optional callback for progress updates
         """
         self.stream = stream
         self.output_dir = output_dir
+        self.progress = TransferProgress(progress_callback)
         self._started = False
         self._file_size = 0
         self._received_size = 0
@@ -289,14 +334,16 @@ class ZModemReceiver:
 class ZModemSender:
     """ZModem file sender"""
     
-    def __init__(self, stream):
+    def __init__(self, stream, progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         """
         Initialize ZModem sender
         
         Args:
             stream: Writable stream
+            progress_callback: Optional callback for progress updates
         """
         self.stream = stream
+        self.progress = TransferProgress(progress_callback)
         self._started = False
         self._block_num = 0
         
