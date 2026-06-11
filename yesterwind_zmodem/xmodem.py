@@ -4,11 +4,13 @@ XModem protocol implementation
 XModem uses 128-byte (or optional 1024-byte) blocks with CRC-16 or checksum.
 """
 
+import os
 import struct
 import binascii
 import io
 import logging
-from typing import Optional, Callable
+import time
+from typing import Optional, Callable, Dict, Any
 from enum import IntEnum
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,60 @@ class XModemError(Exception):
     """Base exception for XModem errors"""
     pass
 
+
+class TransferProgress:
+    """Progress callback for file transfers"""
+    
+    def __init__(self, callback: Optional[Callable[[Dict[str, Any]], None]] = None):
+        """
+        Initialize progress tracker
+        
+        Args:
+            callback: Optional callback function called with progress info
+                      dict keys: block, total_blocks, bytes, total_bytes, 
+                      filename, errors, started_at, elapsed
+        """
+        self.callback = callback
+        self.reset()
+        
+    def reset(self):
+        """Reset progress state"""
+        self.block = 0
+        self.total_blocks = 0
+        self.bytes = 0
+        self.total_bytes = 0
+        self.filename = ""
+        self.errors = 0
+        self.started_at = time.time()
+        self.last_callback = 0
+        
+    def update(self, **kwargs):
+        """Update progress and call callback if set"""
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+        if self.callback:
+            # Throttle callbacks to max 10 per second
+            now = time.time()
+            if now - self.last_callback >= 0.1:
+                self.callback(self.get_info())
+                self.last_callback = now
+                
+    def get_info(self) -> Dict[str, Any]:
+        """Get current progress info"""
+        elapsed = time.time() - self.started_at
+        return {
+            "block": self.block,
+            "total_blocks": self.total_blocks,
+            "bytes": self.bytes,
+            "total_bytes": self.total_bytes,
+            "filename": self.filename,
+            "errors": self.errors,
+            "started_at": self.started_at,
+            "elapsed": elapsed,
+            "percent": (self.bytes / self.total_bytes * 100) if self.total_bytes > 0 else 0
+        }
+
 class XModemReceiver:
     """XModem file receiver"""
     
@@ -33,7 +89,8 @@ class XModemReceiver:
     BLOCK_128 = 128
     BLOCK_1024 = 1024
     
-    def __init__(self, stream, checksum_mode: bool = False, block_size: int = 128):
+    def __init__(self, stream, checksum_mode: bool = False, block_size: int = 128,
+                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         """
         Initialize XModem receiver
         
@@ -41,10 +98,14 @@ class XModemReceiver:
             stream: Readable stream (file-like object)
             checksum_mode: If True, use checksum instead of CRC-16
             block_size: 128 or 1024
+            progress_callback: Optional callback for progress updates
         """
         self.stream = stream
         self.checksum_mode = checksum_mode
         self.block_size = block_size
+        
+        # Progress tracking
+        self.progress = TransferProgress(progress_callback)
         
         # CRC-16 table (XModem uses CRC-CCITT)
         self._crc_table = []
@@ -144,17 +205,24 @@ class XModemReceiver:
                 
         return (block_num, data)
     
-    def receive(self, output_file: str) -> int:
+    def receive(self, output_file: str, total_blocks: int = 0) -> int:
         """
         Receive file
         
         Args:
             output_file: Path to save received file
+            total_blocks: Expected total blocks (for progress calculation)
             
         Returns:
             Number of blocks received
         """
         blocks = 0
+        
+        # Initialize progress
+        self.progress.reset()
+        self.progress.filename = output_file
+        self.progress.total_blocks = total_blocks
+        self.progress.update(block=0)
         
         # Send initial NAK or CRC request
         if self.checksum_mode:
@@ -163,6 +231,10 @@ class XModemReceiver:
             self.stream.write(bytes([CRC]))
             
         self._started = True
+        
+        # Get file size if available
+        if os.path.exists(output_file):
+            self.progress.total_bytes = os.path.getsize(output_file)
         
         # Open output file
         with open(output_file, 'wb') as f:
@@ -180,12 +252,21 @@ class XModemReceiver:
                 expected = (blocks + 1) & 0xFF
                 if block_num != expected:
                     logger.warning(f"Block sequence error: expected {expected}, got {block_num}")
+                    self.progress.errors += 1
                     self.stream.write(bytes([NAK]))
                     continue
                     
                 # Write data
                 f.write(data)
                 blocks += 1
+                
+                # Update progress
+                self.progress.bytes = blocks * self.block_size
+                self.progress.block = blocks
+                self.progress.update(
+                    block=blocks,
+                    bytes=self.progress.bytes
+                )
                 
                 # Acknowledge
                 self.stream.write(bytes([ACK]))
@@ -197,7 +278,8 @@ class XModemReceiver:
 class XModemSender:
     """XModem file sender"""
     
-    def __init__(self, stream, checksum_mode: bool = False, block_size: int = 128):
+    def __init__(self, stream, checksum_mode: bool = False, block_size: int = 128,
+                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         """
         Initialize XModem sender
         
@@ -205,10 +287,14 @@ class XModemSender:
             stream: Writable stream (file-like object)
             checksum_mode: If True, use checksum instead of CRC-16
             block_size: 128 or 1024
+            progress_callback: Optional callback for progress updates
         """
         self.stream = stream
         self.checksum_mode = checksum_mode
         self.block_size = block_size
+        
+        # Progress tracking
+        self.progress = TransferProgress(progress_callback)
         
         # CRC-16 table (XModem uses CRC-CCITT)
         self._crc_table = []
@@ -285,6 +371,14 @@ class XModemSender:
         Returns:
             Number of blocks sent
         """
+        # Initialize progress
+        self.progress.reset()
+        self.progress.filename = input_file
+        self.progress.total_bytes = os.path.getsize(input_file)
+        total_blocks = (self.progress.total_bytes + self.block_size - 1) // self.block_size
+        self.progress.total_blocks = total_blocks
+        self.progress.update(block=0)
+        
         blocks = 0
         
         # Read input file
@@ -310,6 +404,15 @@ class XModemSender:
                         raise XModemError("Failed to send block after retry")
                         
                 blocks += 1
+                
+                # Update progress
+                self.progress.bytes = blocks * self.block_size
+                self.progress.block = blocks
+                self.progress.update(
+                    block=blocks,
+                    bytes=self.progress.bytes
+                )
+                
                 logger.debug(f"Sent block {self._block_num}")
                 
         # Send EOT
