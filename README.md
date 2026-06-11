@@ -1,5 +1,9 @@
 # Yesterwind ZModem
 
+[![Test](https://github.com/ehwio/yesterwind-zmodem/actions/workflows/Test/badge.svg)](https://github.com/ehwio/yesterwind-zmodem/actions/workflows/Test)
+[![Python Versions](https://img.shields.io/pypi/pyversions/yesterwind-zmodem)](https://pypi.org/project/yesterwind-zmodem/)
+[![Coverage](https://img.shields.io/codecov/c/github/ehwio/yesterwind-zmodem)](https://codecov.io/gh/ehwio/yesterwind-zmodem)
+
 A pure-Python implementation of ZModem, YModem, and XModem file transfer protocols.
 
 Designed for reliable file transfers over telnet/BBS-style connections.
@@ -11,6 +15,7 @@ Designed for reliable file transfers over telnet/BBS-style connections.
 - XModem: CRC and checksum modes
 - Pure Python (no C dependencies)
 - Telnet-compatible with proper escaping
+- Progress callbacks for transfer monitoring
 
 ## Installation
 
@@ -21,11 +26,14 @@ pip install yesterwind-zmodem
 ## Usage
 
 ```python
-from yesterwind_zmodem import ZModemSender, ZModemReceiver
+from yesterwind_zmodem import ZModemSender, ZModemReceiver, TransferProgress
 
-# Send a file
-sender = ZModemSender(stream)
-sender.send_file("myfile.txt")
+# Send a file with progress callback
+def on_progress(info):
+    print(f"Progress: {info['percent']:.1f}% - {info['block']}/{info['total_blocks']} blocks")
+
+sender = ZModemSender(stream, progress_callback=on_progress)
+sender.send("myfile.txt")
 
 # Receive a file
 receiver = ZModemReceiver(stream)

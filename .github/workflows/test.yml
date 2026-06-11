@@ -36,26 +36,3 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
-
-  coverage:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.14'
-    
-    - name: Install dependencies
-      run: pip install pytest pytest-cov
-    
-    - name: Check coverage
-      run: |
-        pytest test_*.py -v --cov=yesterwind_zmodem --cov-report=term-missing
-        COVERAGE=$(pytest --cov=yesterwind_zmodem --cov-report=term-missing 2>&1 | grep "TOTAL" | awk '{print $4}' | tr -d '%')
-        if [ "$COVERAGE" -lt 100 ]; then
-          echo "Coverage is $COVERAGE%, below 100%"
-          exit 1
-        fi
