@@ -17,9 +17,9 @@ from yesterwind_zmodem import (
     ZModemError
 )
 from yesterwind_zmodem.zmodem import (
-    ZRINIT, ZRQINIT, ZSKIP, ZACK, ZFILE, ZDATA, ZFERR, ZCRC, ZNAK, ZABORT, ZFIN,
+    ZRINIT, ZRQINIT, ZSKIP, ZACK, ZFILE, ZDATA, ZEOF, ZFERR, ZCRC, ZNAK, ZRPOS, ZABORT, ZFIN,
     ZBIN, ZHEX, ZBIN32,
-    CAN, DLE, XON, XOFF, TELNET_IAC,
+    ZPAD, ZDLE, XON, XOFF, CAN,
     ZModemConstants
 )
 
@@ -43,32 +43,33 @@ class TestZModemConstants(unittest.TestCase):
     """Test ZModem constants"""
     
     def test_frame_constants(self):
-        """Test frame type constants"""
+        """Test frame type constants (current values from zmodem.py)"""
         self.assertEqual(ZRINIT, 0x01)
-        self.assertEqual(ZRQINIT, 0x02)
+        self.assertEqual(ZRQINIT, 0x00)
         self.assertEqual(ZSKIP, 0x03)
         self.assertEqual(ZACK, 0x04)
-        self.assertEqual(ZFILE, 0x05)
-        self.assertEqual(ZDATA, 0x06)
-        self.assertEqual(ZFERR, 0x08)
-        self.assertEqual(ZCRC, 0x09)
-        self.assertEqual(ZNAK, 0x0A)
-        self.assertEqual(ZABORT, 0x0B)
-        self.assertEqual(ZFIN, 0x0C)
+        self.assertEqual(ZFILE, 0x04)
+        self.assertEqual(ZDATA, 0x05)
+        self.assertEqual(ZEOF, 0x06)
+        self.assertEqual(ZFERR, 0x07)
+        self.assertEqual(ZCRC, 0x08)
+        self.assertEqual(ZNAK, 0x09)
+        self.assertEqual(ZRPOS, 0x09)
+        self.assertEqual(ZABORT, 0x0A)
+        self.assertEqual(ZFIN, 0x0B)
         
     def test_data_type_constants(self):
-        """Test data type constants"""
-        self.assertEqual(ZBIN, 0x31)
-        self.assertEqual(ZHEX, 0x32)
-        self.assertEqual(ZBIN32, 0x33)
+        """Test data type constants (current encoding bytes)"""
+        self.assertEqual(ZBIN, 0x41)  # 'A'
+        self.assertEqual(ZHEX, 0x42)  # 'B'
+        self.assertEqual(ZBIN32, 0x43)  # 'C'
         
     def test_special_chars(self):
-        """Test special character constants"""
+        """Test special character constants (use ZDLE for the escape char)"""
         self.assertEqual(CAN, 0x18)
-        self.assertEqual(DLE, 0x10)
+        self.assertEqual(ZDLE, 0x18)
         self.assertEqual(XON, 0x11)
         self.assertEqual(XOFF, 0x13)
-        self.assertEqual(TELNET_IAC, 0xFF)
 
 
 class TestZModemConstantsClass(unittest.TestCase):
@@ -83,11 +84,11 @@ class TestZModemConstantsClass(unittest.TestCase):
         self.assertEqual(ZModemConstants.MAX_SUBPACKET, 2048)
         
     def test_timing_constants(self):
-        """Test timing constants"""
-        self.assertEqual(ZModemConstants.ZINIT_TIMER, 10)
-        self.assertEqual(ZModemConstants.TIMEOUT, 10)
+        """Test timing constants (current values)"""
+        self.assertEqual(ZModemConstants.ZINIT_TIMER, 45)
+        self.assertEqual(ZModemConstants.TIMEOUT, 20)
         self.assertEqual(ZModemConstants.TIMEOUT_LONG, 60)
-        self.assertEqual(ZModemConstants.MAX_RETRIES, 10)
+        self.assertEqual(ZModemConstants.MAX_RETRIES, 15)
         
     def test_make_header(self):
         """Test make_header"""

@@ -1,34 +1,38 @@
 #!/usr/bin/env python3
 """
-Demo 1: Connect to a remote sz (ZModem sender) via TCP and download a file.
+Demo 2: Act as ZModem sender, connect to rz --tcp-client receiver.
 
 Usage:
-    python demo/download_via_zmodem.py <host> <port> [filename]
+    python demo/upload_via_zmodem.py <host> <port> 
 
 Example:
-    python demo/download_via_zmodem.py localhost 9000 myfile.txt
+    # On receiver side (nuc):
+    rz --tcp-client
+    
+    # On sender side:
+    python demo/upload_via_zmodem.py nuc 9000 myfile.txt
 """
 
 import sys
 import argparse
-from yesterwind_zmodem import ZModemReceiver, TransferProgress
+from yesterwind_zmodem import ZModemSender
 from socket_wrapper import create_stream
 
 
-def download_via_zmodem(host: str, port: int, output_file: str = None, progress_callback=None, verbose: bool = False):
+def upload_via_zmodem(host: str, port: int, file_list: list, progress_callback=None, verbose: bool = False):
     """
-    Connect to a ZModem sender and download a file.
+    Connect to a ZModem receiver and upload files.
     
     Args:
         host: Remote host address
         port: Remote port number
-        output_file: Local filename to save (default: auto-detect from transfer)
+        file_list: List of file paths to upload
         progress_callback: Optional callback for progress updates
         verbose: Enable debug output
     """
     print(f"Connecting to {host}:{port}...")
     
-    # Create socket stream (wraps socket with file-like interface)
+    # Create socket stream
     stream = create_stream(host, port)
     
     # Enable debug logging if verbose
@@ -36,25 +40,24 @@ def download_via_zmodem(host: str, port: int, output_file: str = None, progress_
         import logging
         logging.basicConfig(level=logging.DEBUG)
     
-    print("Connected! Starting ZModem receive...")
+    print("Connected! Starting ZModem send...")
     
-    # Create ZModem receiver with progress
-    receiver = ZModemReceiver(
+    # Create ZModem sender
+    sender = ZModemSender(
         stream, 
-        output_dir=".",
         progress_callback=progress_callback
     )
     
-    # Receive files
+    # Send files
     try:
-        received = receiver.receive()
+        sent = sender.send(file_list)
         
-        if received:
-            print(f"\nReceived {len(received)} file(s):")
-            for filename, size in received:
-                print(f"  - {filename} ({size} bytes)")
+        if sent:
+            print(f"\nSent {len(sent)} file(s):")
+            for filename, blocks in sent:
+                print(f"  - {filename} ({blocks} blocks)")
         else:
-            print("\nNo files received")
+            print("\nNo files sent")
             
     except Exception as e:
         print(f"Error during transfer: {e}")
@@ -63,7 +66,7 @@ def download_via_zmodem(host: str, port: int, output_file: str = None, progress_
     finally:
         stream.close()
         
-    return received
+    return sent
 
 
 def progress_bar(info: dict):
@@ -89,16 +92,16 @@ def progress_bar(info: dict):
     sys.stdout.flush()
     
     if percent >= 100:
-        print(f"\n✓ Downloaded: {filename}")
+        print(f"\n✓ Uploaded: {filename}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Download a file via ZModem over TCP"
+        description="Upload a file via ZModem over TCP"
     )
     parser.add_argument('host', help="Remote host address")
     parser.add_argument('port', type=int, help="Remote port number")
-    parser.add_argument('filename', nargs='?', help="Output filename (optional)")
+    parser.add_argument('files', nargs='+', help="Files to upload")
     parser.add_argument('-v', '--verbose', action='store_true', help="Show debug output")
     
     args = parser.parse_args()
@@ -107,20 +110,21 @@ def main():
     callback = None if args.verbose else progress_bar
     
     try:
-        download_via_zmodem(
+        upload_via_zmodem(
             args.host, 
             args.port, 
-            args.filename,
+            args.files,
             progress_callback=callback,
             verbose=args.verbose
         )
-        print("\nDownload complete!")
+        print("\nUpload complete!")
         
     except TimeoutError:
         print("\nConnection timed out")
         sys.exit(1)
     except ConnectionRefusedError:
-        print("\nConnection refused - is the remote running sz?")
+        print("\nConnection refused - is the remote running rz?")
+        print("On receiver side, run: rz --tcp-client")
         sys.exit(1)
     except OSError as e:
         print(f"\nNetwork error: {e}")

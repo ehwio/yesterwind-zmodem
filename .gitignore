@@ -2,3 +2,18 @@ __pycache__/
 *.pyc
 *.egg-info/
 
+# Test artifacts, media, logs, and generated outputs from sz/rz interop testing.
+# These must not be included in the public repo (e.g. large binary test files
+# like adamjohnson.webm or similar, plus logs and hexdiff outputs).
+demo/*.webm
+demo/adamjohnson.webm
+demo/dl.log
+demo/hexdiff*
+demo/h*.txt
+demo/hp*.txt
+demo/*.pcap
+demo/test/
+demo/*~
+demo/*.swp
+demo/download_via_zmodem.py~
+demo/hexdiff.sh*
