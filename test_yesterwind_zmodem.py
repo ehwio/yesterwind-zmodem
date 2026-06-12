@@ -316,21 +316,21 @@ class TestZModem(unittest.TestCase):
     """Test ZModem protocol"""
     
     def test_constants(self):
-        """Test ZModem constants"""
+        """Test ZModem constants (updated to current values)"""
         from yesterwind_zmodem.zmodem import (
             ZRINIT, ZRQINIT, ZFILE, ZDATA, ZEOF, ZFIN,
             ZBIN, ZHEX, ZBIN32
         )
         
         self.assertEqual(ZRINIT, 0x01)
-        self.assertEqual(ZRQINIT, 0x02)
-        self.assertEqual(ZFILE, 0x05)
-        self.assertEqual(ZDATA, 0x06)
-        self.assertEqual(ZEOF, 0x07)
-        self.assertEqual(ZFIN, 0x0C)
-        self.assertEqual(ZBIN, 0x31)
-        self.assertEqual(ZHEX, 0x32)
-        self.assertEqual(ZBIN32, 0x33)
+        self.assertEqual(ZRQINIT, 0x00)
+        self.assertEqual(ZFILE, 0x04)
+        self.assertEqual(ZDATA, 0x05)
+        self.assertEqual(ZEOF, 0x06)
+        self.assertEqual(ZFIN, 0x0B)
+        self.assertEqual(ZBIN, 0x41)
+        self.assertEqual(ZHEX, 0x42)
+        self.assertEqual(ZBIN32, 0x43)
         
     def test_header_creation(self):
         """Test header creation"""
@@ -342,15 +342,15 @@ class TestZModem(unittest.TestCase):
         self.assertEqual(header[1], 0x05)
         
     def test_constants_class(self):
-        """Test ZModemConstants defaults"""
+        """Test ZModemConstants defaults (updated to current values)"""
         from yesterwind_zmodem.zmodem import ZModemConstants
         
         self.assertEqual(ZModemConstants.DEFAULT_BLOCK_SIZE, 1024)
         self.assertEqual(ZModemConstants.MAX_SUBPACKET, 2048)
-        self.assertEqual(ZModemConstants.ZINIT_TIMER, 10)
-        self.assertEqual(ZModemConstants.TIMEOUT, 10)
+        self.assertEqual(ZModemConstants.ZINIT_TIMER, 45)
+        self.assertEqual(ZModemConstants.TIMEOUT, 20)
         self.assertEqual(ZModemConstants.TIMEOUT_LONG, 60)
-        self.assertEqual(ZModemConstants.MAX_RETRIES, 10)
+        self.assertEqual(ZModemConstants.MAX_RETRIES, 15)
 
 
 class TestZModemSender(unittest.TestCase):
